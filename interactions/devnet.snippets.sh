@@ -18,7 +18,7 @@ deploy() {
 upgrade() {
   arch -x86_64 erdpy --verbose contract upgrade ${SC_ADDRESS} --project=${PROJECT} \
     --recall-nonce --pem=${USER_PEM} \
-    --gas-limit=20000000 \
+    --gas-limit=30000000 \
     --send --outfile="upgrade-devnet.interaction.json" \
     --proxy=${PROXY} --chain=${CHAIN_ID} || return 
 }

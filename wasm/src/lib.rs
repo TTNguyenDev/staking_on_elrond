@@ -7,6 +7,9 @@
 elrond_wasm_node::wasm_endpoints! {
     staking_contract
     (
+        calculateRewardsForUser
+        claimRewards
+        getApy
         getStakedAddresses
         getStakingPosition
         stake
