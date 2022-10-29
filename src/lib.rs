@@ -20,32 +20,22 @@ pub trait StakingContract {
     }
 
     #[endpoint]
-    fn unstake(&self) {
-        let caller = self.blockchain.get_caller();
+    fn unstake(&self, unstake_amount_opt: OptionalValue<BigUint>) {
+        let caller = self.blockchain().get_caller();
         let stake_mapper = self.staking_position(&caller);
+        let unstake_amount = match unstake_amount_opt {
+            OptionalValue::Some(amt) => amt,
+            OptionalValue::None => stake_mapper.get()
+        };
 
-        let caller_stake = stake_mapper.get();
-        if caller_stake == 0 {
-            return;
-        }
-
-        self.staked_addresses().swap_remove(&caller);
-        stake_mapper.clear();
-
-        self.send().direct_egld(&caller, &caller_stake);
-    }
-
-    #[endpoint]
-    fn unstake(&self, unstake_amount: BigUint) {
-        let caller = self.blockchain.get_caller();
-        let remaining_stake = self.staking_position(&caller).update(|amount| {
+        let remaining_stake = stake_mapper.update(|amount| {
             require!(
-            unstake_amount > 0 && unstake_amount <= amount,
+            unstake_amount > 0 && unstake_amount <= *amount,
                 "Invalid unstake amount"
             );
 
-            *amount -= unstake_amount;
-            amout.clone()
+            *amount -= &unstake_amount;
+            amount.clone()
         });
 
         if remaining_stake == 0 {
