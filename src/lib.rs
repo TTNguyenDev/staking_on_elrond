@@ -27,16 +27,30 @@ pub trait StakingContract {
         require!(payment_amount > 0, "Must pay more than 0");
 
         let caller = self.blockchain().get_caller();
-        self.staking_position(&caller).update(|staking_pos| {
-            self.claim_rewards_for_user(&caller, staking_pos);
-            staking_pos.stake_amount += payment_amount
-        });
-        self.staked_addresses().insert(caller);
+        let stake_mapper = self.staking_position(&caller);
+
+        let new_user = self.staked_addresses().insert(caller.clone());
+        let mut staking_pos = if !new_user {
+            stake_mapper.get()
+        } else {
+                let current_block = self.blockchain().get_block_epoch();
+                StakingPosition {
+                    stake_amount: BigUint::zero(),
+                    last_action_block: current_block
+                }
+        };
+
+        self.claim_rewards_for_user(&caller, &mut staking_pos);
+        staking_pos.stake_amount += payment_amount;
+
+        stake_mapper.set(&staking_pos);
     }
 
     #[endpoint]
     fn unstake(&self, unstake_amount_opt: OptionalValue<BigUint>) {
         let caller = self.blockchain().get_caller();
+        self.require_user_staked(&caller);
+
         let stake_mapper = self.staking_position(&caller);
         let mut staking_pos = stake_mapper.get();
 
@@ -66,11 +80,16 @@ pub trait StakingContract {
     #[endpoint(claimRewards)]
     fn claim_rewards(&self) {
         let caller = self.blockchain().get_caller();
-        let stake_mapper = self.staking_position(&caller);
+        self.require_user_staked(&caller);
 
+        let stake_mapper = self.staking_position(&caller);
         let mut staking_pos = stake_mapper.get();
         self.claim_rewards_for_user(&caller, &mut staking_pos);
         stake_mapper.set(&staking_pos);
+    }
+
+    fn require_user_staked(&self, user: &ManagedAddress) {
+        require!(self.staked_addresses().contains(user), "Must stake first");
     }
 
     fn claim_rewards_for_user(&self, user: &ManagedAddress, staking_pos: &mut StakingPosition<Self::Api>) {
